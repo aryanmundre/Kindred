@@ -77,6 +77,7 @@ export const createAgentStore = ({ dbPath, encryptionKey }: AgentStoreOptions) =
   `);
 
   const selectById = db.prepare(`SELECT * FROM agents WHERE id = ?`);
+  const selectAll = db.prepare(`SELECT * FROM agents ORDER BY created_at DESC`);
   const updateValidation = db.prepare(`
     UPDATE agents SET validated = @validated, last_validation_error = @error, last_validated_at = @ts
     WHERE id = @id
@@ -211,6 +212,10 @@ export const createAgentStore = ({ dbPath, encryptionKey }: AgentStoreOptions) =
         throw new Error("agent_not_found");
       }
       return toRecord(row);
+    },
+    listAgents: (): AgentRecord[] => {
+      const rows = selectAll.all() as AgentRow[];
+      return rows.map(toRecord);
     },
     updateValidationState: (agentId: string, ok: boolean, error?: string | null) => {
       updateValidation.run({

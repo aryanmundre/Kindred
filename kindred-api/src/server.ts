@@ -16,6 +16,7 @@ export type AgentStore = {
     auth_secrets: AgentAuth;
   };
   getAgentPublic(agentId: string): any;
+  listAgents(): any[];
   updateValidationState(agentId: string, ok: boolean, error?: string | null): void;
 };
 
@@ -24,6 +25,16 @@ export const createServer = (deps: { store: AgentStore; logger?: Logger }) => {
   const app = express();
   app.use(cors());
   app.use(express.json({ limit: "1mb" }));
+
+  app.get("/api/agents", (req, res) => {
+    try {
+      const agents = store.listAgents();
+      res.json(agents);
+    } catch (err) {
+      logger.error({ err }, "Failed to list agents");
+      res.status(500).json({ error: "internal_error" });
+    }
+  });
 
   app.post("/api/agents", (req, res) => {
     try {
