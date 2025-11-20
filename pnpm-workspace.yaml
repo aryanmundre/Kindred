@@ -1,0 +1,7 @@
+packages:
+  - kindred-api
+  - kindred-orchestrator
+  - apps/console
+  - packages/*
+  - sdks/node/*
+  - examples/*

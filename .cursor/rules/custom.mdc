@@ -1,0 +1,14 @@
+---
+alwaysApply: true
+---
+
+- When possible, try to reuse or refactor existing functionality rather than adding new code
+- Never introduce a new technology without asking first. (e.g., changing from react to angular)
+- Make the minimal set of changes to achieve intended prompt
+- Always validate & sanitize on server; escape output.
+- Keep secrets server-side only (env vars, ensure .env is in .gitignore).
+- Server must verify permissions for every action & resource.
+- Generic error messages for users; detailed logs for devs.
+- Server must confirm current user owns/can access the specific resource ID.
+- Define data access rules directly in your database (e.g., RLS).
+- Rate limit APIs (middleware); encrypt sensitive data at rest; always use HTTPS.

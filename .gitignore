@@ -1,0 +1,14 @@
+node_modules
+pnpm-lock.yaml
+.pnpm-store/
+.env
+.env.local
+.env.*
+dist
+.next
+coverage
+.DS_Store
+__pycache__
+*.pyc
+.sdks
+.venv/

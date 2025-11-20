@@ -1,0 +1,123 @@
+import { z } from "zod";
+
+export const RoleSchema = z.enum(["system", "user", "assistant"]);
+
+export const HistoryMessageSchema = z.object({
+  role: RoleSchema,
+  content: z.string().min(1, "content is required")
+});
+
+export const ObservationSchema = z.object({
+  text: z.string().default(""),
+  dom: z.string().nullable().optional(),
+  image_b64: z.string().nullable().optional(),
+  errors: z.array(z.string()).default([])
+});
+
+const ToolJsonSchema = z.object({
+  type: z.string().default("object"),
+  properties: z.record(z.any()).default({}),
+  required: z.array(z.string()).default([])
+});
+
+export const ToolConfigSchema = z.object({
+  name: z.string().min(1),
+  schema: ToolJsonSchema
+});
+
+export const RunMetadataSchema = z.object({
+  run_id: z.string().min(1),
+  step_idx: z.number().int().nonnegative()
+});
+
+export const RunStepRequestSchema = z.object({
+  history: z.array(HistoryMessageSchema).min(1, "history must include at least one message"),
+  observation: ObservationSchema,
+  tools: z.array(ToolConfigSchema).max(25).default([]),
+  meta: RunMetadataSchema
+});
+
+export const RunStepResponseSchema = z.object({
+  thought: z.string().min(1),
+  action: z.object({
+    tool: z.string().min(1),
+    args: z.record(z.any()).default({})
+  })
+});
+
+const AgentAuthNoneSchema = z.object({
+  type: z.literal("none")
+});
+
+const AgentAuthBearerSchema = z.object({
+  type: z.literal("bearer"),
+  bearer_token: z.string().min(1, "bearer_token is required")
+});
+
+const AgentAuthBasicSchema = z.object({
+  type: z.literal("basic"),
+  basic: z.object({
+    username: z.string().min(1),
+    password: z.string().min(1)
+  })
+});
+
+const AgentAuthHmacSchema = z.object({
+  type: z.literal("hmac"),
+  hmac: z.object({
+    secret: z.string().min(1),
+    algo: z.literal("sha256")
+  })
+});
+
+export const AgentAuthSchema = z.discriminatedUnion("type", [
+  AgentAuthNoneSchema,
+  AgentAuthBearerSchema,
+  AgentAuthBasicSchema,
+  AgentAuthHmacSchema
+]);
+
+export const AgentRegistrationSchema = z.object({
+  name: z.string().min(2),
+  endpoint_url: z.string().url(),
+  auth: AgentAuthSchema,
+  tools: z.array(ToolConfigSchema).min(1).max(25)
+});
+
+export const AgentRecordSchema = AgentRegistrationSchema.extend({
+  agent_id: z.string().min(1),
+  created_at: z.string().datetime(),
+  validated: z.boolean(),
+  last_validation_error: z.string().nullable().optional(),
+  last_validated_at: z.string().datetime().nullable().optional()
+});
+
+export const AgentValidateResponseSchema = z.object({
+  agent_id: z.string().min(1),
+  ok: z.boolean(),
+  errors: z.array(z.string())
+});
+
+export const OrchestratorRunStepRequestSchema = z.object({
+  agent_id: z.string().min(1),
+  history: z.array(HistoryMessageSchema).min(1),
+  observation: ObservationSchema,
+  tools: z.array(ToolConfigSchema).min(0).optional()
+});
+
+export type RunStepRequest = z.infer<typeof RunStepRequestSchema>;
+export type RunStepResponse = z.infer<typeof RunStepResponseSchema>;
+export type AgentAuth = z.infer<typeof AgentAuthSchema>;
+export type AgentRegistrationPayload = z.infer<typeof AgentRegistrationSchema>;
+export type AgentRecord = z.infer<typeof AgentRecordSchema>;
+export type AgentValidateResponse = z.infer<typeof AgentValidateResponseSchema>;
+export type OrchestratorRunStepRequest = z.infer<typeof OrchestratorRunStepRequestSchema>;
+
+export const Schemas = {
+  RunStepRequestSchema,
+  RunStepResponseSchema,
+  AgentRegistrationSchema,
+  AgentRecordSchema,
+  AgentValidateResponseSchema,
+  OrchestratorRunStepRequestSchema
+};

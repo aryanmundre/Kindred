@@ -1,0 +1,31 @@
+{
+  "name": "kindred-api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "start": "node dist/index.js",
+    "build": "tsup src/index.ts --format esm,cjs --out-dir dist",
+    "lint": "tsc --noEmit",
+    "test": "vitest"
+  },
+  "dependencies": {
+    "@kindred/contracts": "workspace:*",
+    "@kindred/persistence": "workspace:*",
+    "@kindred/runtime": "workspace:*",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "node-fetch": "^3.3.2",
+    "pino": "^9.4.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.12.12",
+    "tsup": "^8.0.2",
+    "tsx": "^4.15.7",
+    "typescript": "^5.6.3",
+    "vitest": "^1.6.0",
+    "supertest": "^7.1.1"
+  }
+}
