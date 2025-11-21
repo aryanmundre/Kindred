@@ -8,7 +8,7 @@ Repo containing everything needed to register external agents with Kindred, vali
 - `kindred-orchestrator`: Internal service that forwards console "Try a Call" payloads to registered agents.
 - `apps/console`: Minimal Next.js console to register agents, view details, validate, and run ad-hoc steps.
 - `packages/contracts`: Shared Zod schemas + generated JSON schema + TypeScript types for requests/responses.
-- `packages/persistence`: SQLite-backed agent store with AES-GCM encrypted auth payloads.
+- `packages/persistence`: Supabase (PostgreSQL)-backed agent store with AES-GCM encrypted auth payloads.
 - `packages/runtime`: Helpers for building validation payloads and invoking agent `/run_step` endpoints with proper auth headers.
 - `sdks/node/kindred-agent` and `sdks/python/kindred_agent`: Tiny validators developers can drop into their agents.
 - `examples/agent-python-fastapi`, `examples/agent-node-express`: Reference agents covering bearer/basic/hmac auth.
@@ -31,7 +31,29 @@ pnpm dev:orchestrator
 pnpm dev:console
 ```
 
-Environment variables live in `.env`; adjust for production (real encryption key, DB path, auth secrets).
+## Environment Variables
+
+Create a `.env` file in the root directory with:
+
+```bash
+# Supabase Configuration
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_KEY=your-supabase-anon-key
+
+# Encryption (for encrypting bearer tokens at rest)
+KINDRED_ENCRYPTION_KEY=your-encryption-key-min-16-chars
+
+# Service Ports
+PORT=4000
+ORCH_PORT=4100
+NEXT_PUBLIC_API_BASE_URL=http://localhost:4000
+NEXT_PUBLIC_ORCH_BASE_URL=http://localhost:4100
+```
+
+**Important:** Before running, you need to:
+1. Create a Supabase project at https://supabase.com
+2. Run the migration SQL in `packages/persistence/migrations/001_create_agents_table.sql` in your Supabase SQL editor
+3. Get your Supabase URL and anon key from Project Settings → API
 
 ## Quick Usage
 
@@ -66,6 +88,6 @@ When registering an agent, use this example tools JSON schema:
 ## Tech Notes
 
 - All APIs use the shared contracts; invalid payloads produce detailed error strings.
-- Secrets are encrypted at rest in SQLite (`@kindred/persistence`).
+- Secrets are encrypted at rest in Supabase/PostgreSQL (`@kindred/persistence`).
 - Runtime invocation includes bearer/basic/hmac headers with signatures where needed.
 - Console is intentionally minimal—just enough inputs to hit the endpoints fast.

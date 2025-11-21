@@ -7,17 +7,17 @@ import type { AgentAuth } from "@kindred/contracts";
 import { buildValidationPayload, defaultSayTool, invokeAgent } from "@kindred/runtime";
 
 export type AgentStore = {
-  createAgent(payload: any): { agentId: string; bearerToken: string };
-  getAgent(agentId: string): {
+  createAgent(payload: any): Promise<{ agentId: string; bearerToken: string }>;
+  getAgent(agentId: string): Promise<{
     agent_id: string;
     name: string;
     endpoint_url: string;
     tools: any[];
     auth_secrets: AgentAuth;
-  };
-  getAgentPublic(agentId: string): any;
-  listAgents(): any[];
-  updateValidationState(agentId: string, ok: boolean, error?: string | null): void;
+  }>;
+  getAgentPublic(agentId: string): Promise<any>;
+  listAgents(): Promise<any[]>;
+  updateValidationState(agentId: string, ok: boolean, error?: string | null): Promise<void>;
 };
 
 export const createServer = (deps: { store: AgentStore; logger?: Logger }) => {
@@ -26,9 +26,9 @@ export const createServer = (deps: { store: AgentStore; logger?: Logger }) => {
   app.use(cors());
   app.use(express.json({ limit: "1mb" }));
 
-  app.get("/api/agents", (req, res) => {
+  app.get("/api/agents", async (req, res) => {
     try {
-      const agents = store.listAgents();
+      const agents = await store.listAgents();
       res.json(agents);
     } catch (err) {
       logger.error({ err }, "Failed to list agents");
@@ -36,10 +36,10 @@ export const createServer = (deps: { store: AgentStore; logger?: Logger }) => {
     }
   });
 
-  app.post("/api/agents", (req, res) => {
+  app.post("/api/agents", async (req, res) => {
     try {
       const payload = AgentRegistrationSchema.strict().parse(req.body);
-      const { agentId, bearerToken } = store.createAgent(payload);
+      const { agentId, bearerToken } = await store.createAgent(payload);
       res.status(201).json({ 
         agent_id: agentId, 
         bearer_token: bearerToken,
@@ -63,9 +63,9 @@ export const createServer = (deps: { store: AgentStore; logger?: Logger }) => {
     }
   });
 
-  app.get("/api/agents/:id", (req, res) => {
+  app.get("/api/agents/:id", async (req, res) => {
     try {
-      const record = store.getAgentPublic(req.params.id);
+      const record = await store.getAgentPublic(req.params.id);
       res.json(record);
     } catch (err) {
       if ((err as Error).message === "agent_not_found") {
@@ -78,20 +78,20 @@ export const createServer = (deps: { store: AgentStore; logger?: Logger }) => {
 
   app.post("/api/agents/:id/validate", async (req, res) => {
     try {
-      const agent = store.getAgent(req.params.id);
+      const agent = await store.getAgent(req.params.id);
       const payload = buildValidationPayload(agent.tools.length ? agent.tools : [defaultSayTool()], agent.agent_id);
       const response = await invokeAgent({
         endpointUrl: agent.endpoint_url,
         auth: agent.auth_secrets,
         payload
       });
-      store.updateValidationState(agent.agent_id, true, null);
+      await store.updateValidationState(agent.agent_id, true, null);
       res.json({ agent_id: agent.agent_id, ok: true, errors: [], response });
     } catch (err) {
       const agentId = req.params.id;
       const errorMsg = formatError(err);
       try {
-        store.updateValidationState(agentId, false, errorMsg);
+        await store.updateValidationState(agentId, false, errorMsg);
       } catch (storeErr) {
         logger.error({ storeErr }, "Failed to persist validation failure");
       }

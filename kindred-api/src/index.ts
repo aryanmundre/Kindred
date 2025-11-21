@@ -6,10 +6,20 @@ import { createServer } from "./server";
 const logger = pino({ level: process.env.LOG_LEVEL ?? "info" });
 
 const PORT = Number(process.env.PORT ?? 4000);
-const DB_PATH = process.env.KINDRED_DB_PATH ?? "./kindred.db";
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_KEY = process.env.SUPABASE_KEY;
 const ENCRYPTION_KEY = process.env.KINDRED_ENCRYPTION_KEY ?? "insecure-dev-key";
 
-const store = createAgentStore({ dbPath: DB_PATH, encryptionKey: ENCRYPTION_KEY });
+if (!SUPABASE_URL || !SUPABASE_KEY) {
+  logger.error("SUPABASE_URL and SUPABASE_KEY environment variables are required");
+  process.exit(1);
+}
+
+const store = createAgentStore({ 
+  supabaseUrl: SUPABASE_URL, 
+  supabaseKey: SUPABASE_KEY, 
+  encryptionKey: ENCRYPTION_KEY 
+});
 const app = createServer({ store, logger });
 
 app.listen(PORT, () => {

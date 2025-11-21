@@ -1,10 +1,11 @@
-import Database from "better-sqlite3";
+import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import { randomUUID, createCipheriv, createDecipheriv, createHash, randomBytes } from "crypto";
 import { AgentAuth, AgentRecord, AgentRegistrationPayload, ToolConfigSchema } from "@kindred/contracts";
 import { z } from "zod";
 
 export type AgentStoreOptions = {
-  dbPath: string;
+  supabaseUrl: string;
+  supabaseKey: string;
   encryptionKey: string;
 };
 
@@ -16,7 +17,7 @@ type AgentRow = {
   auth_payload: string;
   tools_json: string;
   created_at: string;
-  validated: number;
+  validated: boolean;
   last_validation_error: string | null;
   last_validated_at: string | null;
 };
@@ -51,37 +52,9 @@ const decodePayload = (cipherText: string, key: Buffer) => {
   return JSON.parse(decrypted);
 };
 
-export const createAgentStore = ({ dbPath, encryptionKey }: AgentStoreOptions) => {
+export const createAgentStore = ({ supabaseUrl, supabaseKey, encryptionKey }: AgentStoreOptions) => {
   const key = deriveKey(encryptionKey);
-  const db = new Database(dbPath);
-  db.pragma("journal_mode = WAL");
-  db.prepare(`
-    CREATE TABLE IF NOT EXISTS agents (
-      id TEXT PRIMARY KEY,
-      name TEXT NOT NULL,
-      endpoint_url TEXT NOT NULL,
-      auth_type TEXT NOT NULL,
-      auth_payload TEXT NOT NULL,
-      tools_json TEXT NOT NULL,
-      created_at TEXT NOT NULL,
-      validated INTEGER DEFAULT 0,
-      last_validation_error TEXT,
-      last_validated_at TEXT
-    )
-  `).run();
-
-  const insertStmt = db.prepare(`
-    INSERT INTO agents (
-      id, name, endpoint_url, auth_type, auth_payload, tools_json, created_at, validated
-    ) VALUES (@id, @name, @endpoint_url, @auth_type, @auth_payload, @tools_json, @created_at, @validated)
-  `);
-
-  const selectById = db.prepare(`SELECT * FROM agents WHERE id = ?`);
-  const selectAll = db.prepare(`SELECT * FROM agents ORDER BY created_at DESC`);
-  const updateValidation = db.prepare(`
-    UPDATE agents SET validated = @validated, last_validation_error = @error, last_validated_at = @ts
-    WHERE id = @id
-  `);
+  const supabase: SupabaseClient = createClient(supabaseUrl, supabaseKey);
 
   const serializeAuth = (auth: AgentAuth) => {
     if (auth.type !== "bearer") {
@@ -110,7 +83,7 @@ export const createAgentStore = ({ dbPath, encryptionKey }: AgentStoreOptions) =
     auth: maskSecrets(decryptAuth(row.auth_payload)),
     tools: JSON.parse(row.tools_json),
     created_at: row.created_at,
-    validated: Boolean(row.validated),
+    validated: row.validated,
     last_validated_at: row.last_validated_at ?? null,
     last_validation_error: row.last_validation_error ?? null
   });
@@ -133,54 +106,88 @@ export const createAgentStore = ({ dbPath, encryptionKey }: AgentStoreOptions) =
   };
 
   return {
-    createAgent: (payload: AgentRegistrationPayload): { agentId: string; bearerToken: string } => {
+    createAgent: async (payload: AgentRegistrationPayload): Promise<{ agentId: string; bearerToken: string }> => {
       const now = new Date().toISOString();
       const id = `agt_${randomUUID()}`;
       const bearerToken = generateBearerToken();
       const tools = validateTools(payload.tools);
       const auth: AgentAuth = { type: "bearer", bearer_token: bearerToken };
       
-      insertStmt.run({
-        id,
-        name: payload.name,
-        endpoint_url: payload.endpoint_url,
-        auth_type: "bearer",
-        auth_payload: encryptAuth(auth),
-        tools_json: JSON.stringify(tools),
-        created_at: now,
-        validated: 0
-      });
+      const { error } = await supabase
+        .from("agents")
+        .insert({
+          id,
+          name: payload.name,
+          endpoint_url: payload.endpoint_url,
+          auth_type: "bearer",
+          auth_payload: encryptAuth(auth),
+          tools_json: JSON.stringify(tools),
+          created_at: now,
+          validated: false
+        });
+
+      if (error) {
+        throw new Error(`Failed to create agent: ${error.message}`);
+      }
+
       return { agentId: id, bearerToken };
     },
-    getAgent: (agentId: string): AgentRecord & { auth_secrets: AgentAuth } => {
-      const row = selectById.get(agentId) as AgentRow | undefined;
-      if (!row) {
+    getAgent: async (agentId: string): Promise<AgentRecord & { auth_secrets: AgentAuth }> => {
+      const { data, error } = await supabase
+        .from("agents")
+        .select("*")
+        .eq("id", agentId)
+        .single();
+
+      if (error || !data) {
         throw new Error("agent_not_found");
       }
+
+      const row = data as AgentRow;
       const secrets = decryptAuth(row.auth_payload);
       return {
         ...toRecord(row),
         auth_secrets: secrets
       };
     },
-    getAgentPublic: (agentId: string): AgentRecord => {
-      const row = selectById.get(agentId) as AgentRow | undefined;
-      if (!row) {
+    getAgentPublic: async (agentId: string): Promise<AgentRecord> => {
+      const { data, error } = await supabase
+        .from("agents")
+        .select("*")
+        .eq("id", agentId)
+        .single();
+
+      if (error || !data) {
         throw new Error("agent_not_found");
       }
-      return toRecord(row);
+
+      return toRecord(data as AgentRow);
     },
-    listAgents: (): AgentRecord[] => {
-      const rows = selectAll.all() as AgentRow[];
-      return rows.map(toRecord);
+    listAgents: async (): Promise<AgentRecord[]> => {
+      const { data, error } = await supabase
+        .from("agents")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        throw new Error(`Failed to list agents: ${error.message}`);
+      }
+
+      return (data || []).map((row: AgentRow) => toRecord(row));
     },
-    updateValidationState: (agentId: string, ok: boolean, error?: string | null) => {
-      updateValidation.run({
-        id: agentId,
-        validated: ok ? 1 : 0,
-        error: error ?? null,
-        ts: new Date().toISOString()
-      });
+    updateValidationState: async (agentId: string, ok: boolean, error?: string | null): Promise<void> => {
+      const { error: updateError } = await supabase
+        .from("agents")
+        .update({
+          validated: ok,
+          last_validation_error: error ?? null,
+          last_validated_at: new Date().toISOString()
+        })
+        .eq("id", agentId);
+
+      if (updateError) {
+        throw new Error(`Failed to update validation state: ${updateError.message}`);
+      }
     }
   };
 };

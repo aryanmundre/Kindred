@@ -6,12 +6,12 @@ import type { AgentAuth } from "@kindred/contracts";
 import { invokeAgent } from "@kindred/runtime";
 
 export type AgentStore = {
-  getAgent(agentId: string): {
+  getAgent(agentId: string): Promise<{
     agent_id: string;
     endpoint_url: string;
     tools: any[];
     auth_secrets: AgentAuth;
-  };
+  }>;
 };
 
 export const createOrchestratorServer = (deps: { store: AgentStore; logger?: ReturnType<typeof pino> }) => {
@@ -23,7 +23,7 @@ export const createOrchestratorServer = (deps: { store: AgentStore; logger?: Ret
   app.post("/internal/orchestrator/run-step", async (req, res) => {
     try {
       const payload = OrchestratorRunStepRequestSchema.strict().parse(req.body);
-      const agent = store.getAgent(payload.agent_id);
+      const agent = await store.getAgent(payload.agent_id);
       const merged = RunStepRequestSchema.parse({
         history: payload.history,
         observation: payload.observation,
