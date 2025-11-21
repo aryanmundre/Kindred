@@ -17,17 +17,17 @@ if (existsSync(projectRootEnv)) {
 const logger = pino({ level: process.env.LOG_LEVEL ?? "info" });
 const PORT = Number(process.env.ORCH_PORT ?? 4100);
 const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_KEY = process.env.SUPABASE_KEY;
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const ENCRYPTION_KEY = process.env.KINDRED_ENCRYPTION_KEY ?? "insecure-dev-key";
 
-if (!SUPABASE_URL || !SUPABASE_KEY) {
-  logger.error("SUPABASE_URL and SUPABASE_KEY environment variables are required");
+if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+  logger.error("SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY environment variables are required");
   process.exit(1);
 }
 
 const store = createAgentStore({ 
   supabaseUrl: SUPABASE_URL, 
-  supabaseKey: SUPABASE_KEY, 
+  supabaseServiceKey: SUPABASE_SERVICE_ROLE_KEY, 
   encryptionKey: ENCRYPTION_KEY 
 });
 const app = createOrchestratorServer({ store, logger });

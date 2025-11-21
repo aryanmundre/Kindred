@@ -36,11 +36,11 @@ pnpm dev:console
 Create a `.env` file in the root directory with:
 
 ```bash
-# Supabase Configuration
+# Supabase Configuration (service role key is required server-side)
 SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_KEY=your-supabase-anon-key
+SUPABASE_SERVICE_ROLE_KEY=your-supabase-service-role-key
 
-# Encryption (for encrypting bearer tokens at rest)
+# Encryption (used to encrypt stored bearer tokens)
 KINDRED_ENCRYPTION_KEY=your-encryption-key-min-16-chars
 
 # Service Ports
@@ -52,8 +52,8 @@ NEXT_PUBLIC_ORCH_BASE_URL=http://localhost:4100
 
 **Important:** Before running, you need to:
 1. Create a Supabase project at https://supabase.com
-2. Run the migration SQL in `packages/persistence/migrations/001_create_agents_table.sql` in your Supabase SQL editor
-3. Get your Supabase URL and anon key from Project Settings → API
+2. Run the SQL files in `packages/persistence/migrations/` (`001_create_agents_table.sql`, `002_enable_rls_agents.sql`) inside the Supabase SQL editor
+3. Copy the **service role** key (Project Settings → API) into `SUPABASE_SERVICE_ROLE_KEY` so the backend can read/write while RLS is enforced
 
 ## Quick Usage
 

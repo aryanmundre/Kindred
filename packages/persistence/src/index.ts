@@ -5,7 +5,7 @@ import { z } from "zod";
 
 export type AgentStoreOptions = {
   supabaseUrl: string;
-  supabaseKey: string;
+  supabaseServiceKey: string;
   encryptionKey: string;
 };
 
@@ -52,9 +52,9 @@ const decodePayload = (cipherText: string, key: Buffer) => {
   return JSON.parse(decrypted);
 };
 
-export const createAgentStore = ({ supabaseUrl, supabaseKey, encryptionKey }: AgentStoreOptions) => {
+export const createAgentStore = ({ supabaseUrl, supabaseServiceKey, encryptionKey }: AgentStoreOptions) => {
   const key = deriveKey(encryptionKey);
-  const supabase: SupabaseClient = createClient(supabaseUrl, supabaseKey);
+  const supabase: SupabaseClient = createClient(supabaseUrl, supabaseServiceKey);
 
   const serializeAuth = (auth: AgentAuth) => {
     if (auth.type !== "bearer") {
