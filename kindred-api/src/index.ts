@@ -1,7 +1,21 @@
-import "dotenv/config";
+import { config as loadEnv } from "dotenv";
+import { existsSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import pino from "pino";
 import { createAgentStore } from "@kindred/persistence";
 import { createServer } from "./server";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+// Load env from current working directory (package-local .env)
+loadEnv();
+
+// Also load project root .env when running via pnpm --filter
+const projectRootEnv = path.resolve(__dirname, "../../.env");
+if (existsSync(projectRootEnv)) {
+  loadEnv({ path: projectRootEnv, override: false });
+}
 
 const logger = pino({ level: process.env.LOG_LEVEL ?? "info" });
 

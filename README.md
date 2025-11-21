@@ -63,6 +63,24 @@ NEXT_PUBLIC_ORCH_BASE_URL=http://localhost:4100
 4. Try a Call via console or `curl` to orchestrator: `http://localhost:4100/internal/orchestrator/run-step`.
 5. Run tests: `pnpm test` (contracts + registration/validate auth matrix).
 
+## Run the Example Agent (local demo)
+
+Bring up the Python sample to validate your Kindred setup end-to-end:
+
+```bash
+cd examples/agent-python-fastapi
+python -m venv .venv
+source .venv/bin/activate   # Windows: .venv\Scripts\activate
+pip install -r requirements.txt
+export KINDRED_BEARER_TOKEN=<token from the console>   # set to your generated token
+uvicorn main:app --port 3001
+```
+
+Then in the Kindred console:
+1. Register the agent with endpoint `http://localhost:3001/run_step`
+2. Click **Validate** to ensure the bearer token matches
+3. Use **Try a Call** to send manual payloads
+
 ## Example Tools JSON
 
 When registering an agent, use this example tools JSON schema:

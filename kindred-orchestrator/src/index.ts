@@ -1,7 +1,18 @@
-import "dotenv/config";
+import { config as loadEnv } from "dotenv";
+import { existsSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import pino from "pino";
 import { createAgentStore } from "@kindred/persistence";
 import { createOrchestratorServer } from "./server";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+loadEnv();
+const projectRootEnv = path.resolve(__dirname, "../../.env");
+if (existsSync(projectRootEnv)) {
+  loadEnv({ path: projectRootEnv, override: false });
+}
 
 const logger = pino({ level: process.env.LOG_LEVEL ?? "info" });
 const PORT = Number(process.env.ORCH_PORT ?? 4100);
