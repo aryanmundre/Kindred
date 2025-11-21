@@ -7,7 +7,7 @@ interface AgentRecord {
   agent_id: string;
   name: string;
   endpoint_url: string;
-  auth: any;
+  auth?: { type: string; bearer_token?: string };
   tools: any[];
   validated: boolean;
   last_validated_at?: string | null;
@@ -51,7 +51,7 @@ export default async function AgentDetail({ params }: { params: { id: string } }
           <div>
             <label className="text-xs text-slate-500">Auth Mode</label>
             <div className="text-sm font-medium" style={{ marginTop: "4px", textTransform: "capitalize" }}>
-              {agent.auth.type}
+              {agent.auth?.type || "bearer"}
             </div>
           </div>
         </div>

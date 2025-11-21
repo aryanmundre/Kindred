@@ -8,13 +8,6 @@ export type AgentStoreOptions = {
   encryptionKey: string;
 };
 
-export type AgentSecretFields = {
-  bearerToken?: string | null;
-  basicUsername?: string | null;
-  basicPassword?: string | null;
-  hmacSecret?: string | null;
-};
-
 type AgentRow = {
   id: string;
   name: string;
@@ -31,6 +24,13 @@ type AgentRow = {
 const ENC_ALGO = "aes-256-gcm";
 
 const deriveKey = (rawKey: string) => createHash("sha256").update(rawKey).digest();
+
+// Generate a secure bearer token
+const generateBearerToken = (): string => {
+  // Generate a token like: kindred_sk_live_abc123xyz...
+  const randomPart = randomBytes(32).toString("base64url");
+  return `kindred_sk_live_${randomPart}`;
+};
 
 const encodePayload = (payload: Record<string, unknown>, key: Buffer) => {
   const iv = randomBytes(12);
@@ -84,51 +84,23 @@ export const createAgentStore = ({ dbPath, encryptionKey }: AgentStoreOptions) =
   `);
 
   const serializeAuth = (auth: AgentAuth) => {
-    switch (auth.type) {
-      case "none":
-        return { type: "none" };
-      case "bearer":
-        return {
-          type: "bearer",
-          bearerToken: auth.bearer_token
-        };
-      case "basic":
-        return {
-          type: "basic",
-          username: auth.basic.username,
-          password: auth.basic.password
-        };
-      case "hmac":
-        return {
-          type: "hmac",
-          secret: auth.hmac.secret,
-          algo: auth.hmac.algo
-        };
+    if (auth.type !== "bearer") {
+      throw new Error("Only bearer token auth is supported");
     }
+    return {
+      type: "bearer",
+      bearerToken: auth.bearer_token
+    };
   };
 
   const encryptAuth = (auth: AgentAuth) => encodePayload(serializeAuth(auth), key);
 
   const decryptAuth = (cipherText: string): AgentAuth => {
     const raw = decodePayload(cipherText, key);
-    switch (raw.type) {
-      case "none":
-        return { type: "none" };
-      case "bearer":
-        return { type: "bearer", bearer_token: raw.bearerToken };
-      case "basic":
-        return {
-          type: "basic",
-          basic: { username: raw.username, password: raw.password }
-        };
-      case "hmac":
-        return {
-          type: "hmac",
-          hmac: { secret: raw.secret, algo: raw.algo }
-        };
-      default:
-        throw new Error("Unknown auth type in payload");
+    if (raw.type !== "bearer") {
+      throw new Error("Invalid auth type - only bearer tokens supported");
     }
+    return { type: "bearer", bearer_token: raw.bearerToken };
   };
 
   const toRecord = (row: AgentRow): AgentRecord => ({
@@ -144,28 +116,10 @@ export const createAgentStore = ({ dbPath, encryptionKey }: AgentStoreOptions) =
   });
 
   const maskSecrets = (auth: AgentAuth): AgentAuth => {
-    switch (auth.type) {
-      case "none":
-        return auth;
-      case "bearer":
-        return { type: "bearer", bearer_token: maskValue(auth.bearer_token) };
-      case "basic":
-        return {
-          type: "basic",
-          basic: {
-            username: maskValue(auth.basic.username, false),
-            password: maskValue(auth.basic.password)
-          }
-        };
-      case "hmac":
-        return {
-          type: "hmac",
-          hmac: {
-            algo: auth.hmac.algo,
-            secret: maskValue(auth.hmac.secret)
-          }
-        };
+    if (auth.type !== "bearer") {
+      throw new Error("Only bearer token auth is supported");
     }
+    return { type: "bearer", bearer_token: maskValue(auth.bearer_token) };
   };
 
   const maskValue = (value?: string | null, showTail = true) => {
@@ -179,21 +133,24 @@ export const createAgentStore = ({ dbPath, encryptionKey }: AgentStoreOptions) =
   };
 
   return {
-    createAgent: (payload: AgentRegistrationPayload) => {
+    createAgent: (payload: AgentRegistrationPayload): { agentId: string; bearerToken: string } => {
       const now = new Date().toISOString();
       const id = `agt_${randomUUID()}`;
+      const bearerToken = generateBearerToken();
       const tools = validateTools(payload.tools);
+      const auth: AgentAuth = { type: "bearer", bearer_token: bearerToken };
+      
       insertStmt.run({
         id,
         name: payload.name,
         endpoint_url: payload.endpoint_url,
-        auth_type: payload.auth.type,
-        auth_payload: encryptAuth(payload.auth),
+        auth_type: "bearer",
+        auth_payload: encryptAuth(auth),
         tools_json: JSON.stringify(tools),
         created_at: now,
         validated: 0
       });
-      return id;
+      return { agentId: id, bearerToken };
     },
     getAgent: (agentId: string): AgentRecord & { auth_secrets: AgentAuth } => {
       const row = selectById.get(agentId) as AgentRow | undefined;

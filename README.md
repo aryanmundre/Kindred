@@ -1,6 +1,6 @@
 # Kindred Platform MVP
 
-Monorepo containing everything needed to register external agents with Kindred, validate them, and run single `/run_step` rounds from the console.
+Repo containing everything needed to register external agents with Kindred, validate them, and run single `/run_step` rounds from the console.
 
 ## Structure
 
@@ -40,6 +40,28 @@ Environment variables live in `.env`; adjust for production (real encryption key
 3. Validate: `curl -X POST http://localhost:4000/api/agents/<agent_id>/validate`
 4. Try a Call via console or `curl` to orchestrator: `http://localhost:4100/internal/orchestrator/run-step`.
 5. Run tests: `pnpm test` (contracts + registration/validate auth matrix).
+
+## Example Tools JSON
+
+When registering an agent, use this example tools JSON schema:
+
+```json
+[
+  {
+    "name": "say",
+    "schema": {
+      "type": "object",
+      "properties": {
+        "message": {
+          "type": "string",
+          "description": "The message to say to the user"
+        }
+      },
+      "required": ["message"]
+    }
+  }
+]
+```
 
 ## Tech Notes
 

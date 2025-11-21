@@ -5,7 +5,7 @@ interface Agent {
   agent_id: string;
   name: string;
   endpoint_url: string;
-  auth: { type: string };
+  auth?: { type: string };
   tools: any[];
   validated: boolean;
   last_validated_at?: string | null;
@@ -59,7 +59,7 @@ export default async function AgentListPage() {
                 <div className="endpoint">{agent.endpoint_url}</div>
                 <div className="flex gap-2 mt-4">
                   <span className="text-xs text-slate-500" style={{ padding: "4px 8px", background: "#f1f5f9", borderRadius: "4px" }}>
-                    {agent.auth.type}
+                    {agent.auth?.type || "bearer"}
                   </span>
                   <span className="text-xs text-slate-500" style={{ padding: "4px 8px", background: "#f1f5f9", borderRadius: "4px" }}>
                     {agent.tools.length} tools

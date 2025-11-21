@@ -7,7 +7,7 @@ import type { AgentAuth } from "@kindred/contracts";
 import { buildValidationPayload, defaultSayTool, invokeAgent } from "@kindred/runtime";
 
 export type AgentStore = {
-  createAgent(payload: any): string;
+  createAgent(payload: any): { agentId: string; bearerToken: string };
   getAgent(agentId: string): {
     agent_id: string;
     name: string;
@@ -39,11 +39,27 @@ export const createServer = (deps: { store: AgentStore; logger?: Logger }) => {
   app.post("/api/agents", (req, res) => {
     try {
       const payload = AgentRegistrationSchema.strict().parse(req.body);
-      const agentId = store.createAgent(payload);
-      res.status(201).json({ agent_id: agentId, validated: false });
+      const { agentId, bearerToken } = store.createAgent(payload);
+      res.status(201).json({ 
+        agent_id: agentId, 
+        bearer_token: bearerToken,
+        validated: false 
+      });
     } catch (err) {
       logger.warn({ err }, "Failed to register agent");
-      res.status(400).json({ error: formatError(err) });
+      const errorMsg = formatError(err);
+      // Include detailed Zod errors if available
+      if (err && typeof err === "object" && "issues" in err && Array.isArray((err as any).issues)) {
+        res.status(400).json({ 
+          error: errorMsg,
+          errors: (err as any).issues.map((issue: any) => ({
+            path: issue.path,
+            message: issue.message
+          }))
+        });
+      } else {
+        res.status(400).json({ error: errorMsg });
+      }
     }
   });
 

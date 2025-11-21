@@ -1,5 +1,4 @@
 import fetch from "node-fetch";
-import { createHmac } from "crypto";
 import {
   AgentAuth,
   HistoryMessageSchema,
@@ -52,27 +51,9 @@ export async function invokeAgent({ endpointUrl, auth, payload, timeoutMs = 1500
   const parsedPayload = RunStepRequestSchema.parse(payload);
   const body = JSON.stringify(parsedPayload);
   const headers: Record<string, string> = {
-    "content-type": "application/json"
+    "content-type": "application/json",
+    "authorization": `Bearer ${auth.bearer_token}`
   };
-
-  switch (auth.type) {
-    case "bearer":
-      headers["authorization"] = `Bearer ${auth.bearer_token}`;
-      break;
-    case "basic":
-      headers["authorization"] = `Basic ${Buffer.from(
-        `${auth.basic.username}:${auth.basic.password}`
-      ).toString("base64")}`;
-      break;
-    case "hmac":
-      headers["x-kindred-signature"] = `sha256=${createHmac("sha256", auth.hmac.secret)
-        .update(body)
-        .digest("hex")}`;
-      break;
-    case "none":
-    default:
-      break;
-  }
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
